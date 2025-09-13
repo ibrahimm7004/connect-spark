@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+supabase
+openai
+python-dotenv
+pydantic
+psycopg2-binary
+qrcode[pil]
+

@@ -147,9 +147,3 @@ pytest
 - [x] Backend service with FastAPI
 - [ ] AI-powered embeddings and matching logic
 - [ ] Recap infographic enhancements
-
----
-
-## 📄 License
-
-MIT License. See `LICENSE` for details.

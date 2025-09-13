@@ -1,73 +1,155 @@
-# Welcome to your Lovable project
+# ConnectSpark
 
-## Project info
+**ConnectSpark** is a networking and connection platform designed for events. It helps attendees connect meaningfully by aligning on personality, interests, and career goals, while giving organizers and sponsors measurable ROI.
 
-**URL**: https://lovable.dev/projects/07bc75d6-731c-4d02-b8ae-fac8be607970
+👉 Live development version: [https://connect-spark.vercel.app/](https://connect-spark.vercel.app/)
 
-## How can I edit this code?
+---
 
-There are several ways of editing your application.
+## 🚀 Features
 
-**Use Lovable**
+- **Simple Onboarding**
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/07bc75d6-731c-4d02-b8ae-fac8be607970) and start prompting.
+  - Sign up with LinkedIn or email.
+  - Build a personal profile with hobbies, goals, and optional personality details.
 
-Changes made via Lovable will be committed automatically to this repo.
+- **Event Join Flow**
 
-**Use your preferred IDE**
+  - Join events by scanning a QR code or entering a 4-digit code.
+  - Answer quick intent questions (“Why did you attend?”, “Who do you want to meet?”).
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+- **Smart Suggestions**
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+  - Personalized attendee and sponsor recommendations.
+  - Quick connect/reject options.
 
-Follow these steps:
+- **Connection Management**
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+  - Review suggestions in detail with shared interests and suggested topics.
+  - Accept or reject incoming connection requests.
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+- **Post-Event Recap**
 
-# Step 3: Install the necessary dependencies.
-npm i
+  - Personalized event summary with insights and key connections.
+  - Downloadable recap infographic.
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+- **Admin Tools**
+
+  - Create and manage events.
+  - Generate event QR codes.
+  - Trigger match recomputation across attendees.
+
+---
+
+## 🛠️ Tools & Tech Used
+
+- **Vite** – Modern frontend build tool
+- **TypeScript** – Type-safe development
+- **React** – Component-based UI framework
+- **shadcn-ui** – Accessible, customizable UI components
+- **Tailwind CSS** – Utility-first styling
+- **FastAPI** – Backend framework for APIs
+- **OpenAI API** – Powering embeddings & AI-assisted features
+
+---
+
+## 📂 Project Structure
+
+```
+app/
+├─ src/                # React frontend
+│  ├─ pages/           # UI pages (Onboarding, Dashboard, Profile, etc.)
+│  ├─ components/      # Reusable UI components
+│  ├─ lib/             # API clients and utilities
+│  └─ integrations/    # Supabase client setup
+├─ backend/            # FastAPI backend
+│  ├─ main.py          # FastAPI entrypoint
+│  ├─ routers/         # API route definitions
+│  ├─ services/        # Embedding, matching, QR, recap services
+│  └─ tests/           # Backend tests
+├─ supabase/           # Supabase migrations & config
+└─ package.json        # Frontend dependencies
+```
+
+---
+
+## ⚙️ Local Development
+
+### Prerequisites
+
+- Node.js (>=18)
+- Python (>=3.10)
+- Supabase project with pgvector enabled
+- Storage buckets created: `qr_codes`, `recaps`
+
+### Frontend Setup
+
+```bash
+cd app
+npm install
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+Runs the frontend at [http://localhost:8080](http://localhost:8080).
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### Backend Setup
 
-**Use GitHub Codespaces**
+```bash
+cd backend
+pip install -r requirements.txt
+uvicorn backend.main:app --reload --port 8000
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+Runs the backend at [http://localhost:8000](http://localhost:8000).
 
-## What technologies are used for this project?
+### Environment Variables
 
-This project is built with:
+Create a `.env` file in both `app/` and `backend/` with the following values:
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+Frontend (`app/.env`):
 
-## How can I deploy this project?
+```bash
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_PUBLISHABLE_KEY=your_supabase_key
+```
 
-Simply open [Lovable](https://lovable.dev/projects/07bc75d6-731c-4d02-b8ae-fac8be607970) and click on Share -> Publish.
+Backend (`backend/.env`):
 
-## Can I connect a custom domain to my Lovable project?
+```bash
+SUPABASE_URL=your_supabase_url
+SUPABASE_SERVICE_KEY=your_supabase_service_role_key
+OPENAI_API_KEY=your_openai_api_key
+```
 
-Yes, you can!
+---
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## 🧪 Testing
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+### Frontend
+
+```bash
+npm run test
+```
+
+### Backend
+
+```bash
+pytest
+```
+
+---
+
+## 📈 Roadmap
+
+- [x] Core onboarding and event join flow
+- [x] Event creation and management (Admin)
+- [x] Frontend + Supabase integration
+- [x] Backend service with FastAPI
+- [ ] AI-powered embeddings and matching logic
+- [ ] Recap infographic enhancements
+
+---
+
+## 📄 License
+
+MIT License. See `LICENSE` for details.

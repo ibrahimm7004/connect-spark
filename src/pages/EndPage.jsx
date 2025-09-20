@@ -2,15 +2,18 @@ import React from 'react'
 
 export default function EndPage() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-6">
-      <h1 className="text-2xl font-bold text-brand-600 mb-4">
-        ✅ Thanks for completing your profile
-      </h1>
-      <p className="text-lg text-gray-700">
-        Smart matching will be available soon 🚀
-      </p>
+    <div className="min-h-screen w-full flex justify-center items-center bg-[#242424]">
+      <div className="w-full max-w-[430px] px-6 text-center">
+        <p className="text-[20px] font-sans font-bold text-white flex items-center justify-center gap-2">
+          ✅ Thanks for completing your profile
+        </p>
+        <p className="mt-2 text-[16px] font-sans text-gray-300">
+          Smart matching will be available soon 🚀
+        </p>
+      </div>
     </div>
   )
 }
+
 
 

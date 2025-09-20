@@ -1,0 +1,44 @@
+/* Figma Design Tokens */
+:root {
+  /* Colors */
+  --gradient-bg: linear-gradient(45deg, #443628 0%, #ED8A50 44%, #BF341E 100%);
+  --gradient-button: linear-gradient(128deg, #EC874E 0%, #BF341E 100%);
+  --surface-dark: #242424;
+  --linkedin: #0A66C2;
+  --linkedin-hov: #004182;
+  --brand-accent: #EB7437;
+  --text-white: #F9F9F9;
+  --text-tagline: #242424;
+  --text-placeholder: #BDBDBD;
+  --text-body: #474747;
+  --text-shadow: #B31F19;
+  
+  /* Typography */
+  --font-body: 'Ubuntu', sans-serif;
+  --font-display: 'Changa One', sans-serif;
+  
+  /* Font Sizes */
+  --text-intro: 80px;
+  --text-tagline-size: 18px;
+  --text-welcome: 22px;
+  --text-subheading: 20px;
+  --text-button: 16px;
+  --text-caption: 14px;
+  
+  /* Spacing */
+  --space-xs: 0.25rem;   /* 4px */
+  --space-sm: 0.5rem;    /* 8px */
+  --space-md: 1rem;      /* 16px */
+  --space-lg: 1.5rem;    /* 24px */
+  --space-xl: 2rem;      /* 32px */
+  --space-2xl: 2.5rem;   /* 40px */
+  
+  /* Border Radius */
+  --radius-sm: 12px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 24px;
+  
+  /* Shadows */
+  --shadow-drop: 0 4px 0 #B31F19;
+}

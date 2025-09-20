@@ -1,0 +1,8 @@
+# This is a Node.js project, not Python
+# Use package.json for dependencies instead
+# Run: npm install
+
+# If you need Python dependencies for any backend services, add them here:
+# flask==2.3.3
+# requests==2.31.0
+# python-dotenv==1.0.0

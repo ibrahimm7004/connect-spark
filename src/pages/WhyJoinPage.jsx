@@ -6,12 +6,11 @@ import { supabase } from '../lib/supabaseClient'
 const WhyJoinPage = () => {
   const navigate = useNavigate()
   const { user } = useAuth()
-  const [question1Answer, setQuestion1Answer] = useState('')
-  const [question2Answer, setQuestion2Answer] = useState('')
+  const [question1Answers, setQuestion1Answers] = useState([]) // ✅ now arrays
+  const [question2Answers, setQuestion2Answers] = useState([])
   const [customAnswer1, setCustomAnswer1] = useState('')
   const [customAnswer2, setCustomAnswer2] = useState('')
   const [loading, setLoading] = useState(false)
-  const [currentEventId, setCurrentEventId] = useState(null)
 
   const question1Options = [
     'To explore career opportunities',
@@ -29,18 +28,26 @@ const WhyJoinPage = () => {
     'Industry experts'
   ]
 
+  // ✅ toggle checkbox selection
+  const toggleSelection = (value, answers, setAnswers) => {
+    if (answers.includes(value)) {
+      setAnswers(answers.filter((ans) => ans !== value))
+    } else {
+      setAnswers([...answers, value])
+    }
+  }
+
   const handleContinue = async () => {
-    if (!question1Answer && !customAnswer1) {
+    if (question1Answers.length === 0 && !customAnswer1.trim()) {
       alert('Please answer question 1')
       return
     }
-    if (!question2Answer && !customAnswer2) {
+    if (question2Answers.length === 0 && !customAnswer2.trim()) {
       alert('Please answer question 2')
       return
     }
 
     setLoading(true)
-    
     try {
       if (!user) {
         alert('You must be logged in to submit answers')
@@ -48,16 +55,17 @@ const WhyJoinPage = () => {
         return
       }
 
-      // MVP: use a real event_id constant
+      // MVP: hardcoded event_id
       const EVENT_ID = 'ad73d792-4286-48c5-8cdf-6a9e5c821a0f'
 
-      // Store answers in database
+      // ✅ combine multiple choices into comma-separated strings
       const payload = {
         user_id: user.id,
         event_id: EVENT_ID,
-        question1: question1Answer || customAnswer1,
-        question2: question2Answer || customAnswer2
+        question1: [...question1Answers, customAnswer1].filter(Boolean).join(', '),
+        question2: [...question2Answers, customAnswer2].filter(Boolean).join(', ')
       }
+
       console.log('Upserting event_answers payload:', payload)
       const { data, error } = await supabase
         .from('event_answers')
@@ -66,7 +74,7 @@ const WhyJoinPage = () => {
       if (error) {
         console.error('Event answers upsert error:', error)
       } else {
-        console.log('Event answers upsert data:', data)
+        console.log('Event answers saved:', data)
       }
 
       setLoading(false)
@@ -85,7 +93,7 @@ const WhyJoinPage = () => {
         <h1 className="text-[20px] font-bold uppercase text-brand-orange mb-4">
           WELCOME
         </h1>
-        
+
         {/* Conference banner */}
         <div className="bg-gradient-to-r from-[#EC874E] to-[#BF341E] rounded-[20px] p-6 mb-6">
           <h2 className="text-white text-[18px] font-medium uppercase leading-6">
@@ -103,16 +111,15 @@ const WhyJoinPage = () => {
         <h3 className="text-[18px] font-medium text-brand-orange mb-4">
           Why did you want to attend this conference?
         </h3>
-        
+
         <div className="space-y-3 mb-4">
           {question1Options.map((option, index) => (
             <label key={index} className="flex items-center gap-3 cursor-pointer">
               <input
-                type="radio"
-                name="question1"
+                type="checkbox"
                 value={option}
-                checked={question1Answer === option}
-                onChange={(e) => setQuestion1Answer(e.target.value)}
+                checked={question1Answers.includes(option)}
+                onChange={() => toggleSelection(option, question1Answers, setQuestion1Answers)}
                 className="w-4 h-4 accent-brand-orange"
               />
               <span className="text-white text-[16px]">{option}</span>
@@ -120,7 +127,7 @@ const WhyJoinPage = () => {
           ))}
         </div>
 
-        {/* Custom input for question 1 */}
+        {/* Custom input */}
         <textarea
           placeholder="Add your own..."
           value={customAnswer1}
@@ -134,16 +141,15 @@ const WhyJoinPage = () => {
         <h3 className="text-[18px] font-medium text-brand-orange mb-4">
           What type of person do you want to meet?
         </h3>
-        
+
         <div className="grid grid-cols-2 gap-3 mb-4">
           {question2Options.map((option, index) => (
             <label key={index} className="flex items-center gap-2 cursor-pointer">
               <input
-                type="radio"
-                name="question2"
+                type="checkbox"
                 value={option}
-                checked={question2Answer === option}
-                onChange={(e) => setQuestion2Answer(e.target.value)}
+                checked={question2Answers.includes(option)}
+                onChange={() => toggleSelection(option, question2Answers, setQuestion2Answers)}
                 className="w-4 h-4 accent-brand-orange"
               />
               <span className="text-white text-[16px]">{option}</span>
@@ -151,7 +157,7 @@ const WhyJoinPage = () => {
           ))}
         </div>
 
-        {/* Custom input for question 2 */}
+        {/* Custom input */}
         <textarea
           placeholder="Add your own..."
           value={customAnswer2}

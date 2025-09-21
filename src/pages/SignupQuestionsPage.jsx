@@ -1,256 +1,234 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
-import { ArrowLeft } from 'lucide-react'
 
-const hobbiesLeft = [
-  'Welness',
-  'Arts & Music',
-  'Outdoors & Travel',
-  'Home & Lifestyle',
-  'Health',
-  'Food & Drink',
-]
-
-const hobbiesRight = [
-  'Comedy',
-  'Business',
-  'Gaming',
-  'Films',
-  'Fashion',
-  'Community',
-]
-
-const SignupQuestions = () => {
+const SignupQuestionsPage = () => {
   const navigate = useNavigate()
   const { updateProfile } = useAuth()
-  const [selectedHobbies, setSelectedHobbies] = useState([])
-  const [enneagram, setEnneagram] = useState('')
-  const [mbti, setMbti] = useState('')
-  const [customHobby, setCustomHobby] = useState('')
-  const [addedHobbies, setAddedHobbies] = useState([])
+  const [formData, setFormData] = useState({
+    fullName: '',
+    jobTitle: '',
+    company: '',
+    responsibilities: '',
+    location: '',
+  })
   const [loading, setLoading] = useState(false)
+  const [errors, setErrors] = useState({})
+  const [imagePreview, setImagePreview] = useState(null)
 
-  const toggleHobby = (hobby) => {
-    setSelectedHobbies((prev) =>
-      prev.includes(hobby) ? prev.filter((h) => h !== hobby) : [...prev, hobby]
-    )
-  }
-
-  const handleContinue = async () => {
-    setLoading(true)
-    try {
-      // Combine selected hobbies and added hobbies
-      const allInterests = [...selectedHobbies, ...addedHobbies].join(', ')
-      
-      // Update profile with personality data
-      const { error } = await updateProfile({
-        interests: allInterests,
-        enneagram: enneagram,
-        mbti: mbti
-      })
-
-      if (!error) {
-        navigate('/why-join')
-      } else {
-        console.error('Error updating profile:', error)
-        // Even if update fails, continue onboarding
-        navigate('/why-join')
-      }
-    } catch (error) {
-      console.error('Error updating profile:', error)
-      // Even if update fails, continue onboarding
-      navigate('/why-join')
-    } finally {
-      setLoading(false)
+  const handleChange = (e) => {
+    const { name, value } = e.target
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }))
+    if (errors[name]) {
+      setErrors((prev) => ({
+        ...prev,
+        [name]: '',
+      }))
     }
   }
 
-  const handleSkip = async () => {
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0]
+    if (file) {
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        setImagePreview(e.target.result)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const triggerImageUpload = () => {
+    document.getElementById('image-upload').click()
+  }
+
+  const validateForm = () => {
+    const newErrors = {}
+    if (!formData.fullName.trim()) {
+      newErrors.fullName = 'Full name is required'
+    }
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
+  const handleSubmit = async () => {
+    if (!validateForm()) return
+
     setLoading(true)
     try {
-      // Update profile with null values for skipped fields
+      // save profile details to Supabase
       const { error } = await updateProfile({
-        interests: null,
-        enneagram: null,
-        mbti: null
+        full_name: formData.fullName,
+        job_title: formData.jobTitle,
+        company: formData.company,
+        bio: formData.responsibilities, // renamed from description
+        location: formData.location,
       })
 
-      if (!error) {
-        navigate('/home')
-      } else {
-        console.error('Error updating profile:', error)
-        // Even if update fails, still navigate to home
-        navigate('/home')
-      }
-    } catch (error) {
-      console.error('Error updating profile:', error)
-      // Even if update fails, still navigate to home
-      navigate('/home')
+      console.log("✅ Navigating to /signed-up")
+      navigate('/signed-up') // ✅ fixed: goes to next step
+    } catch (err) {
+      console.error('Profile update error:', err)
+      console.log("✅ Navigating to /signed-up (fallback)")
+      navigate('/signed-up') // ✅ fallback navigation even if update fails
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-brand-dark text-white px-6 py-6 font-sans relative">
-      {/* Header */}
-      <div className="flex items-center gap-6 mb-6">
-        <button onClick={() => navigate(-1)} className="text-white">
-          <ArrowLeft className="w-6 h-6" />
-        </button>
-        <h1 className="text-[20px] font-bold uppercase text-brand-orange">
-          Personal context
-        </h1>
-      </div>
-
-      {/* Subtitle */}
-      <p className="text-[18px] font-normal leading-6 text-white text-center mb-6">
-        Your responses will help us better understand you and connect more
-        accuratly with others
-      </p>
-
-      {/* Question 1 */}
-      <h2 className="text-[18px] font-medium text-brand-orange mb-4">
-        Outside of work, what do you enjoy?
-      </h2>
-
-      {/* Hobbies */}
-      <div className="grid grid-cols-2 gap-4 mb-6">
-        <div className="flex flex-col gap-3">
-          {hobbiesLeft.map((hobby) => (
-            <label
-              key={hobby}
-              className="flex items-center gap-2 cursor-pointer"
+    <div className="min-h-screen w-full flex justify-center bg-brand-dark">
+      <div className="w-full max-w-[430px] min-h-[932px] flex flex-col px-6 py-6">
+        {/* Header */}
+        <div className="flex items-center gap-4 mb-8">
+          <button onClick={() => navigate(-1)} className="w-6 h-6">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={2}
+              stroke="#F9F9F9"
+              className="w-6 h-6"
             >
-              <input
-                type="checkbox"
-                checked={selectedHobbies.includes(hobby)}
-                onChange={() => toggleHobby(hobby)}
-                className="accent-brand-orange w-4 h-4"
-              />
-              <span className="text-[16px] font-normal leading-6">{hobby}</span>
-            </label>
-          ))}
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <h1 className="flex-1 text-center font-sans text-[20px] font-bold uppercase text-[#EC874E]">
+            Complete Your Profile
+          </h1>
         </div>
-        <div className="flex flex-col gap-3">
-          {hobbiesRight.map((hobby) => (
-            <label
-              key={hobby}
-              className="flex items-center gap-2 cursor-pointer"
-            >
-              <input
-                type="checkbox"
-                checked={selectedHobbies.includes(hobby)}
-                onChange={() => toggleHobby(hobby)}
-                className="accent-brand-orange w-4 h-4"
-              />
-              <span className="text-[16px] font-normal leading-6">{hobby}</span>
-            </label>
-          ))}
-        </div>
-      </div>
 
-      {/* Added hobbies */}
-      {(selectedHobbies.length > 0 || addedHobbies.length > 0) && (
-        <div className="flex items-center gap-3 mb-4">
-          <span className="text-[12px] text-brand-orange">Added:</span>
-          <div className="flex gap-4 flex-wrap">
-            {selectedHobbies.map((hobby) => (
-              <span key={hobby} className="text-[12px] text-white">
-                {hobby}
-              </span>
-            ))}
-            {addedHobbies.map((hobby) => (
-              <span key={hobby} className="text-[12px] text-white">
-                {hobby}
-              </span>
-            ))}
+        {/* Upload image */}
+        <div className="flex items-center gap-4 mb-8">
+          <div className="w-24 h-24 bg-gray-light rounded-full overflow-hidden">
+            {imagePreview ? (
+              <img
+                src={imagePreview}
+                alt="Profile preview"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full bg-gray-light rounded-full" />
+            )}
+          </div>
+          <div>
+            <input
+              id="image-upload"
+              type="file"
+              accept="image/*"
+              onChange={handleImageUpload}
+              className="hidden"
+            />
+            <button
+              type="button"
+              onClick={triggerImageUpload}
+              className="px-5 py-3 rounded-[20px] bg-gradient-to-r from-[#EC874E] to-[#BF341E] text-white font-sans text-[14px] font-normal hover:opacity-90 transition-opacity"
+            >
+              Upload image
+            </button>
           </div>
         </div>
-      )}
 
-      {/* Add your own */}
-      <input
-        type="text"
-        placeholder="Add your own..."
-        value={customHobby}
-        onChange={(e) => setCustomHobby(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' && customHobby.trim()) {
-            setAddedHobbies((prev) => [...prev, customHobby.trim()])
-            setCustomHobby('')
-          }
-        }}
-        className="w-full h-12 bg-white rounded-[20px] px-4 text-[16px] text-gray-600 placeholder-gray-light mb-6"
-      />
+        {/* Form */}
+        <div className="flex flex-col gap-4">
+          {/* Full name */}
+          <div>
+            <label className="block text-[12px] text-gray-light font-sans mb-1">
+              Full name
+            </label>
+            <input
+              type="text"
+              name="fullName"
+              value={formData.fullName}
+              onChange={handleChange}
+              placeholder="John Preston"
+              className="w-full h-12 px-4 rounded-[20px] bg-white text-[16px] font-sans text-brand-dark placeholder-gray-light"
+            />
+          </div>
 
-      {/* Question 2 */}
-      <h2 className="text-[18px] font-medium text-brand-orange mb-3">
-        What is your Enneagram type?
-      </h2>
-              <select
-                value={enneagram}
-                onChange={(e) => setEnneagram(e.target.value)}
-                className="w-full h-12 bg-white rounded-[20px] px-4 text-[16px] text-brand-dark mb-6"
-              >
-                <option value="">Select your Enneagram type</option>
-                <option value="1 - Reformer">1 - Reformer</option>
-                <option value="2 - Helper">2 - Helper</option>
-                <option value="3 - Achiever">3 - Achiever</option>
-                <option value="4 - Individualist">4 - Individualist</option>
-                <option value="5 - Investigator">5 - Investigator</option>
-                <option value="6 - Loyalist">6 - Loyalist</option>
-                <option value="7 - Enthusiast">7 - Enthusiast</option>
-                <option value="8 - Challenger">8 - Challenger</option>
-                <option value="9 - Peacemaker">9 - Peacemaker</option>
-              </select>
+          {/* Job title */}
+          <div>
+            <label className="block text-[12px] text-gray-light font-sans mb-1">
+              Job title
+            </label>
+            <input
+              type="text"
+              name="jobTitle"
+              value={formData.jobTitle}
+              onChange={handleChange}
+              placeholder="Web Designer"
+              className="w-full h-12 px-4 rounded-[20px] bg-white text-[16px] font-sans text-brand-dark placeholder-gray-light"
+            />
+          </div>
 
-      {/* Question 3 */}
-      <h2 className="text-[18px] font-medium text-brand-orange mb-3">
-        What is your Meyers-Briggs type?
-      </h2>
-              <select
-                value={mbti}
-                onChange={(e) => setMbti(e.target.value)}
-                className="w-full h-12 bg-white rounded-[20px] px-4 text-[16px] text-brand-dark mb-6"
-              >
-                <option value="">Select your Myers-Briggs type</option>
-                <option value="ENTJ">ENTJ</option>
-                <option value="INTJ">INTJ</option>
-                <option value="ENFP">ENFP</option>
-                <option value="INFP">INFP</option>
-                <option value="ESTJ">ESTJ</option>
-                <option value="ISTJ">ISTJ</option>
-                <option value="ESFP">ESFP</option>
-                <option value="ISFP">ISFP</option>
-                <option value="ENTP">ENTP</option>
-                <option value="INTP">INTP</option>
-                <option value="ESFJ">ESFJ</option>
-                <option value="ISFJ">ISFJ</option>
-                <option value="ESTP">ESTP</option>
-                <option value="ISTP">ISTP</option>
-                <option value="ENFJ">ENFJ</option>
-                <option value="INFJ">INFJ</option>
-              </select>
+          {/* Company */}
+          <div>
+            <label className="block text-[12px] text-gray-light font-sans mb-1">
+              Company
+            </label>
+            <input
+              type="text"
+              name="company"
+              value={formData.company}
+              onChange={handleChange}
+              placeholder="DigiCo"
+              className="w-full h-12 px-4 rounded-[20px] bg-white text-[16px] font-sans text-brand-dark placeholder-gray-light"
+            />
+          </div>
 
-      {/* Actions */}
-      <button
-        onClick={handleContinue}
-        disabled={loading}
-        className="w-full h-12 bg-gradient-to-r from-[#EC874E] to-[#BF341E] rounded-[20px] text-[16px] font-bold uppercase disabled:opacity-50"
-      >
-        {loading ? 'Saving...' : 'Continue'}
-      </button>
-      <button
-        onClick={handleSkip}
-        disabled={loading}
-        className="mt-4 w-full text-center text-[16px] font-bold uppercase underline disabled:opacity-50"
-      >
-        Skip
-      </button>
+          {/* Job responsibilities */}
+          <div>
+            <label className="block text-[12px] text-gray-light font-sans mb-1">
+              Job responsibilities
+            </label>
+            <textarea
+              name="responsibilities"
+              value={formData.responsibilities}
+              onChange={handleChange}
+              placeholder="What are your main responsibilities?"
+              rows={3}
+              className="w-full px-4 py-3 rounded-[20px] bg-white text-[16px] font-sans text-brand-dark placeholder-gray-light"
+            />
+          </div>
+
+          {/* Location */}
+          <div>
+            <label className="block text-[12px] text-gray-light font-sans mb-1">
+              Location
+            </label>
+            <input
+              type="text"
+              name="location"
+              value={formData.location}
+              onChange={handleChange}
+              placeholder="City, Country"
+              className="w-full h-12 px-4 rounded-[20px] bg-white text-[16px] font-sans text-brand-dark placeholder-gray-light"
+            />
+          </div>
+
+          {/* Error display */}
+          {Object.keys(errors).length > 0 && (
+            <div className="mt-4 p-3 bg-red-100 border border-red-300 rounded-lg">
+              <p className="text-red-800 text-sm">{Object.values(errors)[0]}</p>
+            </div>
+          )}
+
+          {/* Continue button */}
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={loading}
+            className="w-full h-12 rounded-[20px] bg-gradient-to-r from-[#EC874E] to-[#BF341E] text-white font-sans text-[16px] font-bold uppercase mt-6 disabled:opacity-50"
+          >
+            {loading ? 'Saving...' : 'Continue'}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
 
-export default SignupQuestions
+export default SignupQuestionsPage

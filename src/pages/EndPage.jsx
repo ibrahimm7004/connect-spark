@@ -4,16 +4,19 @@ export default function EndPage() {
   return (
     <div className="min-h-screen w-full flex justify-center items-center bg-[#242424]">
       <div className="w-full max-w-[430px] px-6 text-center">
-        <p className="text-[20px] font-sans font-bold text-white flex items-center justify-center gap-2">
-          ✅ Thanks for completing your profile
+        {/* Main message */}
+        <h1 className="text-[22px] font-sans font-bold uppercase text-transparent bg-clip-text bg-gradient-to-r from-[#EC874E] to-[#BF341E]">
+          Thanks for completing your profile
+        </h1>
+
+        {/* Sub message */}
+        <p className="mt-4 text-[18px] font-sans text-gray-300 leading-6">
+          Smart matching will be available soon
         </p>
-        <p className="mt-2 text-[16px] font-sans text-gray-300">
-          Smart matching will be available soon 🚀
-        </p>
+
+        {/* Optional divider for polish */}
+        <div className="mt-8 w-24 h-[2px] mx-auto bg-gradient-to-r from-[#EC874E] to-[#BF341E]" />
       </div>
     </div>
   )
 }
-
-
-

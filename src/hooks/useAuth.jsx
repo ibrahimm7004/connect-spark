@@ -17,204 +17,214 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null)
       setLoading(false)
     })
 
-    // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('🔐 Auth state change:', event, session?.user?.id)
+      console.log('🔐 User provider:', session?.user?.app_metadata?.provider)
       setUser(session?.user ?? null)
       setLoading(false)
+
+      if (session?.user && event === 'SIGNED_IN') {
+        // Only create profile for Google users (they have user_metadata)
+        if (session.user.app_metadata?.provider === 'google') {
+          console.log('🔐 Creating profile for Google user')
+          await handleGoogleUserProfile(session.user)
+        } else {
+          console.log('🔐 Email user - NOT creating profile automatically')
+        }
+      }
     })
 
     return () => subscription.unsubscribe()
   }, [])
 
-  // Email/Password signup
+  // ✅ Email/Password signup
   const signUp = async (email, password, userData) => {
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-      })
+      const { data, error } = await supabase.auth.signUp({ email, password })
 
-      if (error) throw error
-
-      if (data.user) {
-        // Auto-insert profile row via Supabase trigger
-        if (userData && Object.keys(userData).length > 0) {
-          await supabase
-            .from('profiles')
-            .upsert({ id: data.user.id, ...userData })
+      if (error) {
+        if (error.message.includes('already registered')) {
+          toast.error('User already exists. Please log in instead.')
+        } else {
+          toast.error(error.message)
         }
-
-        setUser(data.user)
-        toast.success('Account created successfully!')
+        return { data: null, error }
       }
 
-      return { data, error }
-    } catch (error) {
-      console.error('Sign up error:', error)
-      toast.error(error.message)
-      return { data: null, error }
+      if (data.user) {
+        if (userData && Object.keys(userData).length > 0) {
+          await supabase.from('profiles').upsert({ id: data.user.id, ...userData })
+        }
+        setUser(data.user)
+        // Don't show toast here - let the calling component handle success/error messages
+      }
+
+      return { data, error: null }
+    } catch (err) {
+      console.error('❌ Sign up error:', err)
+      toast.error(err.message)
+      return { data: null, error: err }
     }
   }
 
-  // Email/Password login
+  // ✅ Email/Password login
   const signIn = async (email, password) => {
     try {
+      console.log('useAuth signIn called with:', email)
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
+      console.log('Supabase auth response:', { data, error })
 
-      if (error) throw error
-      return { data, error }
-    } catch (error) {
-      console.error('Sign in error:', error)
-      toast.error(error.message)
-      return { data: null, error }
+      if (error) {
+        console.error('Supabase auth error:', error)
+        toast.error('Invalid email or password')
+        return { data: null, error }
+      }
+
+      if (data.user) {
+        console.log('User authenticated:', data.user.id)
+        // Don't set user state here - let the auth state change listener handle it
+        toast.success('Logged in successfully!')
+      }
+
+      return { data, error: null }
+    } catch (err) {
+      console.error('❌ Sign in error:', err)
+      toast.error(err.message)
+      return { data: null, error: err }
     }
   }
 
-  // Google OAuth signup/login
-  const signInWithGoogle = async () => {
+  // ✅ Google login/signup
+  const signInWithGoogle = async (flow = 'login') => {
     try {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/?flow=${flow}`,
+        },
       })
-      if (error) throw error
-      return { data, error }
-    } catch (error) {
-      console.error('Google sign-in error:', error)
-      toast.error(error.message)
-      return { data: null, error }
+
+      if (error) {
+        toast.error(`Google ${flow} failed: ${error.message}`)
+        return { data: null, error }
+      }
+
+      return { data, error: null }
+    } catch (err) {
+      console.error('❌ Google sign-in error:', err)
+      toast.error(err.message)
+      return { data: null, error: err }
     }
   }
 
-  // Logout
+  // ✅ Ensure Google user has a profile row
+  const handleGoogleUserProfile = async (user) => {
+    try {
+      const { data: existing, error } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', user.id)
+        .maybeSingle()
+
+      if (!existing) {
+        await supabase.from('profiles').insert({
+          id: user.id,
+          full_name: user.user_metadata?.full_name || user.user_metadata?.name || '',
+          profile_pic: user.user_metadata?.avatar_url || user.user_metadata?.picture || '',
+        })
+      }
+    } catch (err) {
+      console.error('❌ Google profile creation error:', err)
+    }
+  }
+
+  // ✅ Logout
   const signOut = async () => {
     try {
       const { error } = await supabase.auth.signOut()
       if (error) throw error
+      setUser(null)
       toast.success('Signed out successfully')
-    } catch (error) {
-      console.error('Sign out error:', error)
-      toast.error(error.message)
+    } catch (err) {
+      console.error('❌ Sign out error:', err)
+      toast.error(err.message)
     }
   }
 
-  // Update profile
+  // ✅ Update profile (INSERT or UPDATE)
   const updateProfile = async (updates) => {
     try {
       if (!user) throw new Error('User not authenticated')
 
+      console.log('🔄 Updating profile for user:', user.id)
+      console.log('📝 Updates:', updates)
+
+      // Use upsert to handle both INSERT and UPDATE
       const { error } = await supabase
         .from('profiles')
-        .update(updates)
-        .eq('id', user.id)
+        .upsert({ id: user.id, ...updates }, { onConflict: 'id' })
 
       if (error) {
-        console.error('Update profile error:', error)
+        console.error('❌ Profile upsert error:', error)
         return { error }
       }
 
+      console.log('✅ Profile upserted successfully')
       toast.success('Profile updated successfully')
       return { error: null }
-    } catch (error) {
-      console.error('Update profile error:', error)
-      return { error }
+    } catch (err) {
+      console.error('❌ Profile update error:', err)
+      return { error: err }
     }
   }
 
-  // ✅ Handle post-login navigation
-  const handlePostLoginNavigation = async (userId, navigate) => {
-    try {
-      const { status, redirectTo } = await checkOnboardingStatus(userId)
-      console.log(`🔄 Post-login navigation: ${status} -> ${redirectTo}`)
-      navigate(redirectTo)
-    } catch (error) {
-      console.error('❌ Error in post-login navigation:', error)
-      navigate('/questions') // Fallback
-    }
-  }
-
-  // ✅ Check if user needs onboarding after auth state change
-  const checkUserOnboarding = async (user, navigate) => {
-    if (user && navigate) {
-      console.log('🔍 Auth state changed, checking onboarding for user:', user.id)
-      await handlePostLoginNavigation(user.id, navigate)
-    }
-  }
-
-  // ✅ Complete onboarding check
+  // ✅ Check onboarding status
   const checkOnboardingStatus = async (userId) => {
     try {
-      console.log('🔍 Checking onboarding status for user:', userId)
-      
-      // 1) Check if profile exists and is complete
-      const { data: profile, error: profileError } = await supabase
+      const { data: profile } = await supabase
         .from('profiles')
         .select('full_name, job_title, company, location')
         .eq('id', userId)
-        .single()
+        .maybeSingle()
 
-      if (profileError) {
-        console.error('❌ Error loading profile:', profileError)
-        // If profile doesn't exist (PGRST116 = no rows returned)
-        if (profileError.code === 'PGRST116') {
-          console.log('🔄 No profile found -> /questions')
-          return { status: 'no_profile', redirectTo: '/questions' }
-        }
-        // Other database errors
-        console.log('🔄 Profile error -> /questions')
-        return { status: 'error', redirectTo: '/questions' }
-      }
+      if (!profile) return { status: 'no_profile', redirectTo: '/questions' }
 
-      // Check if all required profile fields are present and not empty
       const requiredFields = ['full_name', 'job_title', 'company', 'location']
-      const missingFields = requiredFields.filter(field => 
-        !profile?.[field] || String(profile[field]).trim() === ''
+      const missing = requiredFields.filter(
+        (f) => !profile?.[f] || String(profile[f]).trim() === ''
       )
 
-      if (missingFields.length > 0) {
-        console.log('🔄 Profile incomplete, missing:', missingFields, '-> /questions')
-        return { status: 'incomplete_profile', redirectTo: '/questions' }
-      }
+      if (missing.length > 0) return { status: 'incomplete_profile', redirectTo: '/questions' }
 
-      console.log('✅ Profile complete, checking event answers...')
-
-      // 2) Check if event_answers exist
-      const { data: answers, error: answersError } = await supabase
+      const { data: answers } = await supabase
         .from('event_answers')
         .select('*')
         .eq('user_id', userId)
         .maybeSingle()
 
-      if (answersError) {
-        console.error('❌ Error checking event_answers:', answersError)
-        // Even if there's an error checking answers, if profile is complete, 
-        // we should still check if they need to answer event questions
-        console.log('🔄 Event answers error, assuming no answers -> /why-join')
-        return { status: 'no_event_answers', redirectTo: '/why-join' }
-      }
+      if (!answers) return { status: 'no_event_answers', redirectTo: '/why-join' }
 
-      if (!answers) {
-        console.log('🔄 No event answers found -> /why-join')
-        return { status: 'no_event_answers', redirectTo: '/why-join' }
-      }
-
-      console.log('✅ Onboarding complete -> /end')
       return { status: 'complete', redirectTo: '/end' }
-    } catch (error) {
-      console.error('❌ Error checking onboarding status:', error)
-      console.log('🔄 Fallback -> /questions')
+    } catch (err) {
+      console.error('❌ Onboarding check error:', err)
       return { status: 'error', redirectTo: '/questions' }
     }
+  }
+
+  // ✅ Navigate after login/signup
+  const handlePostLoginNavigation = async (userId, navigate) => {
+    const { redirectTo } = await checkOnboardingStatus(userId)
+    navigate(redirectTo)
   }
 
   const value = {
@@ -227,12 +237,7 @@ export const AuthProvider = ({ children }) => {
     updateProfile,
     checkOnboardingStatus,
     handlePostLoginNavigation,
-    checkUserOnboarding,
   }
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  )
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

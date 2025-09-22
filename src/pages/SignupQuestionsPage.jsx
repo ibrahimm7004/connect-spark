@@ -4,7 +4,8 @@ import { useAuth } from '../hooks/useAuth'
 
 const SignupQuestionsPage = () => {
   const navigate = useNavigate()
-  const { updateProfile } = useAuth()
+  const { updateProfile, user } = useAuth()
+
   const [formData, setFormData] = useState({
     fullName: '',
     jobTitle: '',
@@ -16,20 +17,16 @@ const SignupQuestionsPage = () => {
   const [errors, setErrors] = useState({})
   const [imagePreview, setImagePreview] = useState(null)
 
+  // ✅ Handle field changes
   const handleChange = (e) => {
     const { name, value } = e.target
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }))
+    setFormData((prev) => ({ ...prev, [name]: value }))
     if (errors[name]) {
-      setErrors((prev) => ({
-        ...prev,
-        [name]: '',
-      }))
+      setErrors((prev) => ({ ...prev, [name]: '' }))
     }
   }
 
+  // ✅ Handle image upload (preview only here)
   const handleImageUpload = (e) => {
     const file = e.target.files[0]
     if (file) {
@@ -45,36 +42,57 @@ const SignupQuestionsPage = () => {
     document.getElementById('image-upload').click()
   }
 
+  // ✅ Validation for required fields
   const validateForm = () => {
     const newErrors = {}
-    if (!formData.fullName.trim()) {
-      newErrors.fullName = 'Full name is required'
-    }
+    if (!formData.fullName.trim()) newErrors.fullName = 'Full name is required'
+    if (!formData.jobTitle.trim()) newErrors.jobTitle = 'Job title is required'
+    if (!formData.company.trim()) newErrors.company = 'Company is required'
+    if (!formData.location.trim()) newErrors.location = 'Location is required'
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
 
+  // ✅ Submit handler
   const handleSubmit = async () => {
     if (!validateForm()) return
 
+    if (!user) {
+      alert('You must be logged in to continue')
+      return
+    }
+
     setLoading(true)
+    console.log('🔄 Starting profile update...')
+    console.log('👤 User:', user?.id)
+    console.log('📝 Form data:', formData)
+    
     try {
-      // save profile details to Supabase
-      const { error } = await updateProfile({
+      const profileData = {
         full_name: formData.fullName,
         job_title: formData.jobTitle,
         company: formData.company,
-        bio: formData.responsibilities, // renamed from description
+        bio: formData.responsibilities,
         location: formData.location,
-      })
+      }
+      
+      console.log('📤 Sending profile data:', profileData)
+      
+      const { error } = await updateProfile(profileData)
+      console.log('📡 Update profile response:', { error })
 
-      console.log("✅ Navigating to /signed-up")
-      navigate('/signed-up') // ✅ fixed: goes to next step
+      if (error) {
+        console.error('❌ Profile update error:', error)
+        alert(`Could not save your profile: ${error.message || 'Unknown error'}`)
+        setLoading(false)
+        return
+      }
+
+      console.log('✅ Profile saved successfully, navigating to /signed-up')
+      navigate('/signed-up')
     } catch (err) {
-      console.error('Profile update error:', err)
-      console.log("✅ Navigating to /signed-up (fallback)")
-      navigate('/signed-up') // ✅ fallback navigation even if update fails
-    } finally {
+      console.error('❌ Unexpected error:', err)
+      alert(`Something went wrong: ${err.message || 'Unknown error'}`)
       setLoading(false)
     }
   }
@@ -147,6 +165,7 @@ const SignupQuestionsPage = () => {
               placeholder="John Preston"
               className="w-full h-12 px-4 rounded-[20px] bg-white text-[16px] font-sans text-brand-dark placeholder-gray-light"
             />
+            {errors.fullName && <p className="text-red-500 text-sm">{errors.fullName}</p>}
           </div>
 
           {/* Job title */}
@@ -162,6 +181,7 @@ const SignupQuestionsPage = () => {
               placeholder="Web Designer"
               className="w-full h-12 px-4 rounded-[20px] bg-white text-[16px] font-sans text-brand-dark placeholder-gray-light"
             />
+            {errors.jobTitle && <p className="text-red-500 text-sm">{errors.jobTitle}</p>}
           </div>
 
           {/* Company */}
@@ -177,6 +197,7 @@ const SignupQuestionsPage = () => {
               placeholder="DigiCo"
               className="w-full h-12 px-4 rounded-[20px] bg-white text-[16px] font-sans text-brand-dark placeholder-gray-light"
             />
+            {errors.company && <p className="text-red-500 text-sm">{errors.company}</p>}
           </div>
 
           {/* Job responsibilities */}
@@ -207,12 +228,15 @@ const SignupQuestionsPage = () => {
               placeholder="City, Country"
               className="w-full h-12 px-4 rounded-[20px] bg-white text-[16px] font-sans text-brand-dark placeholder-gray-light"
             />
+            {errors.location && <p className="text-red-500 text-sm">{errors.location}</p>}
           </div>
 
-          {/* Error display */}
+          {/* Error summary */}
           {Object.keys(errors).length > 0 && (
             <div className="mt-4 p-3 bg-red-100 border border-red-300 rounded-lg">
-              <p className="text-red-800 text-sm">{Object.values(errors)[0]}</p>
+              <p className="text-red-800 text-sm">
+                Please fill all required fields before continuing.
+              </p>
             </div>
           )}
 

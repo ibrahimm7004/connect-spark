@@ -1,79 +1,161 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '../hooks/useAuth'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 
 const IntroPage = () => {
   const [formData, setFormData] = useState({ email: '', password: '' })
   const [loading, setLoading] = useState(false)
-  const [hasAttemptedLogin, setHasAttemptedLogin] = useState(false)
+  const [error, setError] = useState('')
+  const [searchParams] = useSearchParams()
 
-  const { signIn, signInWithGoogle, handlePostLoginNavigation, checkUserOnboarding, user } = useAuth()
+  const { signIn, signInWithGoogle, user } = useAuth()
   const navigate = useNavigate()
 
-  // Handle auth state changes (for Google OAuth) - only after login attempts
+
+
+  // ✅ Handle Google OAuth redirect
   useEffect(() => {
-    if (user && hasAttemptedLogin) {
-      console.log('🔍 User detected after login attempt, checking onboarding status...')
-      checkUserOnboarding(user, navigate)
+    if (user) {
+      const flow = searchParams.get('flow')
+      if (flow === 'signup') {
+        // Redirect to signup page to check profile completion
+        navigate('/signup?flow=signup')
+      } else if (flow === 'login') {
+        setLoading(false)
+        checkProfileForLogin()
+      }
     }
-  }, [user, navigate, checkUserOnboarding, hasAttemptedLogin])
+  }, [user, searchParams, navigate])
+
+  // ✅ Check profile for Google login
+  const checkProfileForLogin = async () => {
+    try {
+      console.log('🔍 ===== GOOGLE LOGIN PROFILE CHECK START =====')
+      console.log('🔍 Checking profile for Google login...')
+      console.log('👤 User ID:', user.id)
+      console.log('👤 User email:', user.email)
+      console.log('👤 User provider:', user.app_metadata?.provider)
+      
+      // Wait a moment to ensure any profile creation has completed
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      
+      const { data: existingProfile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, full_name, job_title, company, location, created_at')
+        .eq('id', user.id)
+        .maybeSingle()
+
+      console.log('📊 Profile check result:', { 
+        existingProfile, 
+        profileError,
+        profileExists: !!existingProfile
+      })
+      
+      // Log the full profile object
+      if (existingProfile) {
+        console.log('📊 FULL PROFILE DATA:', JSON.stringify(existingProfile, null, 2))
+      }
+
+      if (profileError) {
+        console.error('❌ Error querying profiles:', profileError)
+        setError('Error checking profile. Please try again.')
+        return
+      }
+
+      if (!existingProfile) {
+        console.log('❌ No profile found for Google login')
+        console.log('🔍 ===== GOOGLE LOGIN PROFILE CHECK END =====')
+        setError('No profile exists. Please sign up first.')
+        // Sign out the user since they shouldn't be logged in
+        await supabase.auth.signOut()
+        return
+      }
+
+      // ✅ Profile exists, check if it's complete
+      const requiredFields = ['full_name', 'job_title', 'company', 'location']
+      const completedFields = requiredFields.filter(field => 
+        existingProfile[field] && existingProfile[field].trim() !== ''
+      )
+      
+      console.log('📊 Profile completion check:', {
+        requiredFields,
+        completedFields,
+        isCompleted: completedFields.length === requiredFields.length
+      })
+
+      if (completedFields.length !== requiredFields.length) {
+        console.log('❌ Profile exists but is incomplete - user should complete signup')
+        console.log('🔍 ===== GOOGLE LOGIN PROFILE CHECK END =====')
+        setError('No profile exists. Please sign up first.')
+        // Sign out the user since they shouldn't be logged in
+        await supabase.auth.signOut()
+        return
+      }
+
+      // ✅ Profile exists and is complete, proceed to end page
+      console.log('✅ Profile found and complete, proceeding to end page')
+      console.log('🔍 ===== GOOGLE LOGIN PROFILE CHECK END =====')
+      navigate('/end')
+    } catch (err) {
+      console.error('❌ Error checking profile for login:', err)
+      setError('Error checking profile. Please try again.')
+    }
+  }
 
   const handleChange = (e) => {
     const { name, value } = e.target
-    setFormData(prev => ({ ...prev, [name]: value }))
+    setFormData((prev) => ({ ...prev, [name]: value }))
+    setError('') // Clear error when user types
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+
     if (!formData.email || !formData.password) {
-      alert('Please fill in all fields')
+      alert("Please fill in all fields")
       return
     }
 
     setLoading(true)
-    setHasAttemptedLogin(true) // Mark that user has attempted login
+
     try {
       const { data, error } = await signIn(formData.email, formData.password)
-      if (!error && data?.user) {
-        console.log('✅ Login successful, checking onboarding status...')
-        
-        // Use the helper function to handle post-login navigation
-        await handlePostLoginNavigation(data.user.id, navigate)
-      } else {
-        console.error('❌ Login failed:', error)
-        alert('Login failed. Please check your credentials.')
-        setHasAttemptedLogin(false) // Reset flag on failed login
+
+      if (error || !data?.user) {
+        setError("Invalid credentials")
+        setLoading(false)
+        return
       }
-    } catch (error) {
-      console.error('❌ Auth error:', error)
-      alert('Login failed. Please try again.')
-      setHasAttemptedLogin(false) // Reset flag on error
+
+      // Login successful - go to end page
+      navigate('/end')
+
+    } catch (err) {
+      setError("Invalid credentials")
     } finally {
       setLoading(false)
     }
   }
 
-  // LinkedIn sign-in removed for MVP
-
   const handleSignUp = () => navigate('/signup')
 
   const handleGoogleSignIn = async () => {
     setLoading(true)
-    setHasAttemptedLogin(true) // Mark that user has attempted login
+
     try {
-      const { error } = await signInWithGoogle()
+      const { error } = await signInWithGoogle('login')
+      
       if (error) {
-        console.error('Google sign-in error:', error)
-        alert('Google sign-in failed. Please try again.')
-        setHasAttemptedLogin(false) // Reset flag on failed login
+        setError('Google sign-in failed.')
+        setLoading(false)
+        return
       }
-      // Note: Navigation will be handled by the useEffect when user state changes
-    } catch (error) {
-      console.error('Google sign-in error:', error)
-      alert('Google sign-in failed. Please try again.')
-      setHasAttemptedLogin(false) // Reset flag on error
-    } finally {
+
+      // Google OAuth will redirect, then useEffect will handle navigation
+      
+    } catch (err) {
+      setError('Google sign-in failed.')
       setLoading(false)
     }
   }
@@ -82,11 +164,9 @@ const IntroPage = () => {
     <div
       className="min-h-screen w-full flex justify-center"
       style={{
-        background:
-          'linear-gradient(45deg, #443628 0%, #ED8A50 44%, #BF341E 100%)',
+        background: 'linear-gradient(45deg, #443628 0%, #ED8A50 44%, #BF341E 100%)',
       }}
     >
-      {/* Mobile frame */}
       <div className="w-full max-w-[430px] min-h-[932px] flex flex-col">
         {/* Header */}
         <div className="pt-16 text-center px-6">
@@ -110,11 +190,12 @@ const IntroPage = () => {
             Log in/Sign up
           </p>
 
-          {/* Google Sign-in Button */}
+          {/* Google Sign-in */}
           <button
             onClick={handleGoogleSignIn}
             disabled={loading}
-            className="w-full h-12 mb-4 bg-white text-gray-700 font-sans font-medium hover:bg-gray-50 transition disabled:opacity-50 rounded-[20px] text-[16px] flex items-center justify-center gap-3"
+            className="w-full h-12 mb-4 bg-white text-gray-700 font-sans font-medium hover:bg-gray-50 
+                       transition disabled:opacity-50 rounded-[20px] text-[16px] flex items-center justify-center gap-3"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -128,13 +209,18 @@ const IntroPage = () => {
           {/* Divider */}
           <div className="flex items-center my-6">
             <hr className="flex-grow border-gray-body" />
-            <span className="px-2 font-sans font-normal text-gray-body text-[14px]">
-              or
-            </span>
+            <span className="px-2 font-sans font-normal text-gray-body text-[14px]">or</span>
             <hr className="flex-grow border-gray-body" />
           </div>
 
-          {/* Form */}
+          {/* Error Message */}
+          {error && (
+            <div className="mb-4 p-3 bg-red-100 border border-red-300 rounded-lg">
+              <p className="text-red-800 text-sm text-center">{error}</p>
+            </div>
+          )}
+
+          {/* Email Login */}
           <form onSubmit={handleSubmit}>
             <input
               type="email"
@@ -142,7 +228,7 @@ const IntroPage = () => {
               placeholder="Email"
               value={formData.email}
               onChange={handleChange}
-              className="w-full h-12 mb-4 px-4 bg-white text-black focus:outline-none font-sans placeholder-gray-light text-[16px] rounded-[20px]"
+              className="w-full h-12 mb-4 px-4 bg-white text-black rounded-[20px]"
               required
             />
             <input
@@ -151,7 +237,7 @@ const IntroPage = () => {
               placeholder="Password"
               value={formData.password}
               onChange={handleChange}
-              className="w-full h-12 mb-2 px-4 bg-white text-black focus:outline-none font-sans placeholder-gray-light text-[16px] rounded-[20px]"
+              className="w-full h-12 mb-2 px-4 bg-white text-black rounded-[20px]"
               required
             />
 
@@ -168,10 +254,9 @@ const IntroPage = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full h-12 text-white font-sans font-bold uppercase hover:opacity-90 transition disabled:opacity-50 rounded-[20px] text-[16px]"
+              className="w-full h-12 text-white font-sans font-bold uppercase rounded-[20px] text-[16px]"
               style={{
-                background:
-                  'linear-gradient(128deg, #EC874E 0%, #BF341E 100%)',
+                background: 'linear-gradient(128deg, #EC874E 0%, #BF341E 100%)',
               }}
             >
               {loading ? 'PROCESSING...' : 'LOG IN'}
@@ -199,8 +284,7 @@ const IntroPage = () => {
               Contact us
             </span>
             <span className="font-sans font-normal text-gray-body text-[16px]">
-              {' '}
-              if you want to use INTRO at your event.
+              {' '}if you want to use INTRO at your event.
             </span>
           </div>
         </div>

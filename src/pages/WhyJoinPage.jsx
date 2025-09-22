@@ -6,20 +6,20 @@ import { supabase } from '../lib/supabaseClient'
 const WhyJoinPage = () => {
   const navigate = useNavigate()
   const { user } = useAuth()
-  const [question1Answers, setQuestion1Answers] = useState([]) // ✅ now arrays
-  const [question2Answers, setQuestion2Answers] = useState([])
-  const [customAnswer1, setCustomAnswer1] = useState('')
-  const [customAnswer2, setCustomAnswer2] = useState('')
+  const [q1Answers, setQ1Answers] = useState([])
+  const [q2Answers, setQ2Answers] = useState([])
+  const [custom1, setCustom1] = useState('')
+  const [custom2, setCustom2] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const question1Options = [
+  const q1Options = [
     'To explore career opportunities',
     'To learn from experts / gain insights',
     'To explore new trends and innovations',
     'To exchange cross-industry ideas'
   ]
 
-  const question2Options = [
+  const q2Options = [
     'Investors',
     'Potential clients',
     'Mentors',
@@ -28,152 +28,114 @@ const WhyJoinPage = () => {
     'Industry experts'
   ]
 
-  // ✅ toggle checkbox selection
-  const toggleSelection = (value, answers, setAnswers) => {
-    if (answers.includes(value)) {
-      setAnswers(answers.filter((ans) => ans !== value))
-    } else {
-      setAnswers([...answers, value])
-    }
+  const toggle = (val, answers, setter) => {
+    setter(answers.includes(val) ? answers.filter(x => x !== val) : [...answers, val])
   }
 
   const handleContinue = async () => {
-    if (question1Answers.length === 0 && !customAnswer1.trim()) {
+    if (!user) {
+      alert('You must be logged in')
+      return
+    }
+    if (q1Answers.length === 0 && !custom1.trim()) {
       alert('Please answer question 1')
       return
     }
-    if (question2Answers.length === 0 && !customAnswer2.trim()) {
+    if (q2Answers.length === 0 && !custom2.trim()) {
       alert('Please answer question 2')
       return
     }
 
     setLoading(true)
     try {
-      if (!user) {
-        alert('You must be logged in to submit answers')
-        setLoading(false)
-        return
-      }
-
-      // MVP: hardcoded event_id
       const EVENT_ID = 'ad73d792-4286-48c5-8cdf-6a9e5c821a0f'
-
-      // ✅ combine multiple choices into comma-separated strings
       const payload = {
         user_id: user.id,
         event_id: EVENT_ID,
-        question1: [...question1Answers, customAnswer1].filter(Boolean).join(', '),
-        question2: [...question2Answers, customAnswer2].filter(Boolean).join(', ')
+        question1: [...q1Answers, custom1].filter(Boolean).join(', '),
+        question2: [...q2Answers, custom2].filter(Boolean).join(', ')
       }
 
-      console.log('Upserting event_answers payload:', payload)
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('event_answers')
         .upsert(payload, { onConflict: 'user_id,event_id' })
 
       if (error) {
-        console.error('Event answers upsert error:', error)
-      } else {
-        console.log('Event answers saved:', data)
+        alert(`Could not save your answers: ${error.message || 'Unknown error'}`)
+        setLoading(false)
+        return
       }
-
-      setLoading(false)
       navigate('/end')
     } catch (error) {
-      console.error('Error processing answers:', error)
+      alert(`Something went wrong: ${error.message || 'Unknown error'}`)
       setLoading(false)
-      navigate('/end')
     }
   }
 
   return (
-    <div className="min-h-screen bg-brand-dark text-white font-sans px-6 py-6">
-      {/* Header */}
-      <div className="text-center mb-8">
-        <h1 className="text-[20px] font-bold uppercase text-brand-orange mb-4">
-          WELCOME
+    <div className="min-h-screen bg-brand-dark text-white font-sans flex justify-center">
+      <div className="w-full max-w-[700px] px-4 py-8 md:px-8">
+        <h1 className="text-lg md:text-xl font-bold uppercase text-brand-orange mb-6 text-center">
+          Why did you join?
         </h1>
 
-        {/* Conference banner */}
-        <div className="bg-gradient-to-r from-[#EC874E] to-[#BF341E] rounded-[20px] p-6 mb-6">
-          <h2 className="text-white text-[18px] font-medium uppercase leading-6">
-            Mastering Photography & Visual Storytelling Conference
-          </h2>
-        </div>
-
-        <p className="text-white text-[18px] font-normal leading-6">
-          These questions will help us know who to introduce you to.
-        </p>
-      </div>
-
-      {/* Question 1 */}
-      <div className="mb-8">
-        <h3 className="text-[18px] font-medium text-brand-orange mb-4">
-          Why did you want to attend this conference?
-        </h3>
-
-        <div className="space-y-3 mb-4">
-          {question1Options.map((option, index) => (
-            <label key={index} className="flex items-center gap-3 cursor-pointer">
+        {/* Question 1 */}
+        <h2 className="text-base md:text-lg font-medium text-brand-orange mb-3">
+          Why did you want to attend this conference? <span className="text-red-400">*</span>
+        </h2>
+        <div className="space-y-2 mb-4">
+          {q1Options.map(opt => (
+            <label key={opt} className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
-                value={option}
-                checked={question1Answers.includes(option)}
-                onChange={() => toggleSelection(option, question1Answers, setQuestion1Answers)}
-                className="w-4 h-4 accent-brand-orange"
+                checked={q1Answers.includes(opt)}
+                onChange={() => toggle(opt, q1Answers, setQ1Answers)}
+                className="accent-brand-orange w-4 h-4"
               />
-              <span className="text-white text-[16px]">{option}</span>
+              <span className="text-sm md:text-base">{opt}</span>
             </label>
           ))}
         </div>
-
-        {/* Custom input */}
         <textarea
           placeholder="Add your own..."
-          value={customAnswer1}
-          onChange={(e) => setCustomAnswer1(e.target.value)}
-          className="w-full h-24 bg-white rounded-[20px] p-3 text-brand-dark text-[16px] placeholder-gray-light resize-none"
+          value={custom1}
+          onChange={e => setCustom1(e.target.value)}
+          className="w-full h-20 md:h-24 bg-white rounded-xl p-3 text-sm md:text-base text-brand-dark mb-6"
         />
-      </div>
 
-      {/* Question 2 */}
-      <div className="mb-8">
-        <h3 className="text-[18px] font-medium text-brand-orange mb-4">
-          What type of person do you want to meet?
-        </h3>
-
-        <div className="grid grid-cols-2 gap-3 mb-4">
-          {question2Options.map((option, index) => (
-            <label key={index} className="flex items-center gap-2 cursor-pointer">
+        {/* Question 2 */}
+        <h2 className="text-base md:text-lg font-medium text-brand-orange mb-3">
+          What type of person do you want to meet? <span className="text-red-400">*</span>
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4">
+          {q2Options.map(opt => (
+            <label key={opt} className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
-                value={option}
-                checked={question2Answers.includes(option)}
-                onChange={() => toggleSelection(option, question2Answers, setQuestion2Answers)}
-                className="w-4 h-4 accent-brand-orange"
+                checked={q2Answers.includes(opt)}
+                onChange={() => toggle(opt, q2Answers, setQ2Answers)}
+                className="accent-brand-orange w-4 h-4"
               />
-              <span className="text-white text-[16px]">{option}</span>
+              <span className="text-sm md:text-base">{opt}</span>
             </label>
           ))}
         </div>
-
-        {/* Custom input */}
         <textarea
           placeholder="Add your own..."
-          value={customAnswer2}
-          onChange={(e) => setCustomAnswer2(e.target.value)}
-          className="w-full h-24 bg-white rounded-[20px] p-3 text-brand-dark text-[16px] placeholder-gray-light resize-none"
+          value={custom2}
+          onChange={e => setCustom2(e.target.value)}
+          className="w-full h-20 md:h-24 bg-white rounded-xl p-3 text-sm md:text-base text-brand-dark mb-6"
         />
-      </div>
 
-      {/* Continue button */}
-      <button
-        onClick={handleContinue}
-        disabled={loading}
-        className="w-full py-3 bg-gradient-to-r from-[#EC874E] to-[#BF341E] rounded-[20px] text-white text-[16px] font-bold uppercase disabled:opacity-50"
-      >
-        {loading ? 'Processing...' : 'Continue'}
-      </button>
+        {/* Continue */}
+        <button
+          onClick={handleContinue}
+          disabled={loading}
+          className="w-full h-10 md:h-12 bg-gradient-to-r from-[#EC874E] to-[#BF341E] rounded-xl text-sm md:text-base font-bold uppercase disabled:opacity-50 hover:opacity-90 transition-opacity"
+        >
+          {loading ? 'Processing...' : 'Continue'}
+        </button>
+      </div>
     </div>
   )
 }
